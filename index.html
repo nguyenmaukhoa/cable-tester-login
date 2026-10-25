@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<!--
+  Google sign-in hand-off for the CrowPanel cable tester (see README.md).
+
+  Google redirects here after the user signs in on the phone:
+    ?code=...&state=<panel ip>~<nonce>        (or ?error=access_denied&state=...)
+  This page only forwards those parameters to the panel on the local Wi-Fi:
+    http://<panel ip>/oauth?code=...&state=...
+  It sends nothing anywhere else. The panel checks the state and trades the
+  code for tokens itself.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Cable tester sign-in</title>
+<style>
+  body { font-family: sans-serif; margin: 0; padding: 16px; background: #eceff1; }
+  p { font-size: 18px; }
+  a.button { display: inline-block; margin-top: 8px; padding: 14px 20px; font-size: 18px;
+             color: #fff; background: #2196f3; border-radius: 8px; text-decoration: none; }
+</style>
+</head>
+<body>
+  <h2 id="title">Returning to the tester...</h2>
+  <p id="text"></p>
+  <a id="go" class="button" hidden>Return to the tester</a>
+<script>
+  // Private IPv4 only, so this page cannot be used to send codes anywhere else
+  function privateIp(ip) {
+    const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ip);
+    if (!m) return false;
+    const [a, b, c, d] = m.slice(1).map(Number);
+    if ([a, b, c, d].some(n => n > 255)) return false;
+    return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+  }
+
+  const query = new URLSearchParams(location.search);
+  const ip = (query.get('state') || '').split('~')[0];
+
+  if (!privateIp(ip)) {
+    document.getElementById('title').textContent = 'Invalid link';
+    document.getElementById('text').textContent = 'Scan the QR code on the tester again.';
+  } else {
+    const url = 'http://' + ip + '/oauth?' + query.toString();
+    const go = document.getElementById('go');
+    go.href = url;
+    go.hidden = false;
+    document.getElementById('text').textContent =
+      'If the tester page does not open, tap the button. Your phone must be on the same Wi-Fi as the tester.';
+    location.replace(url);
+  }
+</script>
+</body>
+</html>
